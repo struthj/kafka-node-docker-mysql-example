@@ -57,25 +57,10 @@ app.use('*', function (req, res, next) {
   });
 });
 
+
+app.listen(port,() => {
+    console.log("== Server is running on port", port);
+
+});
+
 const url = 'mongodb://mongo/dummy-app'
-var connectWithRetry = function() {
-
-  return MongoClient.connect(mongoURL, (err, client) => {
-    if (!err) {
-      app.locals.mongoDB = client.db(mongoDBName);
-      app.locals.mongoDB.collection("users").insert({user: { username: "cheese", 
-                                              email: "my@email.com",
-                                              pass: "1234"}
-                                    });
-      app.listen(port,() => {
-        console.log("== Server is running on port", port);
-
-      });
-    } else {
-      console.log("== Server error ", err);
-      setTimeout(connectWithRetry, 1000);
-    }
-  });
-}
-
-connectWithRetry();

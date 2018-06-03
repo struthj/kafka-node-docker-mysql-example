@@ -16,9 +16,25 @@ var stream = Kafka.Producer.createWriteStream({
 
 stream.on('error', function (err) {
   // Here's where we'll know if something went wrong sending to Kafka
-  console.error('Error in our kafka stream');
-  console.error(err);
+  console.log('Error in our kafka stream');
+  console.log(err);
+  if(!stream.producer.isConnected()){
+      stream.producer.connect();
+  }
+
+});
+
+// Attempt reconnect if disconnected 
+stream.producer.on('disconnect', () => {
+    if(!stream.producer.isConnected()){
+      stream.producer.connect();
+  }
 })
+
+// Disconnect is recieve termination signal
+stream.producer.on('SIGTERM', () => {
+     producer.disconnect();
+ });
 
 
 var producer = new Kafka.Producer({
@@ -35,78 +51,24 @@ var producer = new Kafka.Producer({
     dr_cb: true
   });
 
-function bindListeners() {
-  
-  producer.on('SIGTERM', () => {
-    producer.disconnect();
-  });
-
-  producer.on('delivery-report', report => {
-    console.log('delivery report', report);
-  });
-    producer.on('error', err => {
-      console.log(err);
-    });
-};
-
-
-function connectProducer() {
-  producer.connect({}, err => {
-    if (err) {
-      console.log('connect %s', err);
-      connectProducer();
-    } else {
-      bindListeners();
-      return true;
-    }
-  });
-}
-var connectWithRetry = function() {
-  producer.connect({}, err => {
-    if (err) {
-      console.log('connect %s', err);
-      setTimeout(connectWithRetry, 1000);
-    } else {
-      bindListeners();
-      return true;
-    }
-  });
-}
-
-//connectWithRetry();
-
-
-
-function checkProducer(){
-  return new Promise((resolve, reject) => {
-    producer.on('ready', () => {
-      console.log('producer ready');
-      resolve(producer);
-    });
-    producer.on('error', err => {
-      console.log(err);
-      producer.disconnect();
-      producer.connect();
-      reject(err);
-    });
-  });
-
-}
-console.log("here");
 
 function sendMsg(topic, payload, partition){
-  console.log("HERERE");
+  //console.log("HERERE");
   // Writes a message to the stream
   let str = JSON.stringify(payload).toString();
-var queuedSuccess = stream.write(new Buffer(str));
+  var queuedSuccess = stream.write(new Buffer(str));
+  stream.producer.poll();
 
-if (queuedSuccess) {
-  console.log('We queued our message!');
-} else {
-  // Note that this only tells us if the stream's queue is full,
-  // it does NOT tell us if the message got to Kafka!  See below...
-  console.log('Too many messages in our queue already');
-}
+  if (queuedSuccess) {
+    console.log('We queued our message!');
+  } else {
+    // Note that this only tells us if the stream's queue is full,
+    // it does NOT tell us if the message got to Kafka!  See below...
+    console.log('Too many messages in our queue already');
+    stream.producer.flush({}, () => {
+      console.log("flushing queue");
+    });
+  }
 }
 
 

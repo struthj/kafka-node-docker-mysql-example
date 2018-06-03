@@ -22,9 +22,9 @@ services:
 
   api:
     build: .
-    image: businesses-api
+    image: product-api
     restart: always
-    container_name: "yelp-api"
+    container_name: "product-api"
     ports:
       - 8000:8000
     environment:
@@ -33,11 +33,6 @@ services:
       MYSQL_PASSWORD: ${MYSQL_PASSWORD}
       MYSQL_HOST: mysql
       MYSQL_PORT: 3306
-      MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME}
-      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD}
-      MONGO_INITDB_DATABASE: ${MONGO_INITDB_DATABASE}
-      MONGO_HOST: ${MONGO_HOST}
-      MONGO_PORT: 27017
       KAFKA_PORT: 9093
     depends_on:
       - kafka
@@ -49,7 +44,7 @@ services:
   mysql:
     image: mysql:5
     restart: always
-    container_name: "yelp-mysql"
+    container_name: "product-mysql"
     ports:
       - 3306:3306
     volumes:
@@ -64,7 +59,7 @@ services:
   mongodb:
     image: mongo:latest
     restart: always
-    container_name: "yelp-mongodb"
+    container_name: "product-mongodb"
     volumes:
       - mongo-data:/var/lib/mongo
       - ./db-init/:/docker-entrypoint-initdb.d
@@ -83,6 +78,13 @@ services:
     depends_on:
       - kafka
       - api
+      - mongodb
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD}
+      MONGO_INITDB_DATABASE: ${MONGO_INITDB_DATABASE}
+      MONGO_HOST: ${MONGO_HOST}
+      MONGO_PORT: 27017
     links:
       - api
       - mongodb
