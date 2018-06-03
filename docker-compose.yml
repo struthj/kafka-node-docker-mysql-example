@@ -1,0 +1,96 @@
+version: '3.6'
+services:
+  zookeeper:
+    container_name: zookeeper
+    image: wurstmeister/zookeeper
+    ports:
+      - "2181:2181"
+  kafka:
+    container_name: kafka
+    image: wurstmeister/kafka
+    ports:
+      - "9092"
+    depends_on:
+      - "zookeeper"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: 'zookeeper:2181'
+      KAFKA_LISTENERS: 'PLAINTEXT://kafka:9092'
+      KAFKA_ADVERTISED_LISTENERS: 'PLAINTEXT://kafka:9092'
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+
+  api:
+    build: .
+    image: businesses-api
+    restart: always
+    container_name: "yelp-api"
+    ports:
+      - 8000:8000
+    environment:
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      MYSQL_HOST: mysql
+      MYSQL_PORT: 3306
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD}
+      MONGO_INITDB_DATABASE: ${MONGO_INITDB_DATABASE}
+      MONGO_HOST: ${MONGO_HOST}
+      MONGO_PORT: 27017
+      KAFKA_PORT: 9093
+    depends_on:
+      - kafka
+    links:
+      - mongodb
+      - kafka
+      - zookeeper
+
+  mysql:
+    image: mysql:5
+    restart: always
+    container_name: "yelp-mysql"
+    ports:
+      - 3306:3306
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./db-init/:/docker-entrypoint-initdb.d
+    environment:
+      MYSQL_RANDOM_ROOT_PASSWORD: 'yes'
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+
+  mongodb:
+    image: mongo:latest
+    restart: always
+    container_name: "yelp-mongodb"
+    volumes:
+      - mongo-data:/var/lib/mongo
+      - ./db-init/:/docker-entrypoint-initdb.d
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD}
+      MONGO_INITDB_DATABASE: ${MONGO_INITDB_DATABASE}
+    ports:
+      - 27017:27017
+  connect:
+    container_name: connector-app
+    build: ./connectorApp
+    restart: always
+    ports:
+      - 8001:8001
+    depends_on:
+      - kafka
+      - api
+    links:
+      - api
+      - mongodb
+      - kafka
+      - zookeeper
+
+volumes:
+  mysql-data:
+    name: businesses-mysql-data
+  mongo-data:
+    name: users-mongodb-data
